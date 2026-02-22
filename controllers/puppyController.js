@@ -52,10 +52,32 @@ const getPuppyById = async (req, res) => {
 // Update Puppy with new images
 const updatePuppy = async (req, res) => {
   try {
-    const images = req.files ? req.files.map(file => file.path) : undefined;
+    const images = req.files && req.files.length > 0
+      ? req.files.map(file => `/uploads/${file.filename}`)
+      : undefined;
 
-    const updateData = { ...req.body };
-    if (images) updateData.images = images; // only overwrite if new images uploaded
+    const updateData = {
+      ...req.body,
+      ageInWeeks: req.body.ageInWeeks ? Number(req.body.ageInWeeks) : undefined,
+      priceCents: req.body.priceCents ? Number(req.body.priceCents) : undefined,
+      isAvailable: req.body.isAvailable !== undefined
+        ? req.body.isAvailable === "true"
+        : undefined,
+      vaccinated: req.body.vaccinated !== undefined
+        ? req.body.vaccinated === "true"
+        : undefined,
+      dewormed: req.body.dewormed !== undefined
+        ? req.body.dewormed === "true"
+        : undefined,
+      trained: req.body.trained !== undefined
+        ? req.body.trained === "true"
+        : undefined,
+      bestSeller: req.body.bestSeller !== undefined
+        ? req.body.bestSeller === "true"
+        : undefined
+    };
+
+    if (images) updateData.images = images;
 
     const updatedPuppy = await Puppy.findByIdAndUpdate(
       req.params.id,
@@ -63,13 +85,16 @@ const updatePuppy = async (req, res) => {
       { new: true, runValidators: true }
     );
 
-    if (!updatedPuppy) return res.status(404).json({ message: "Puppy not found" });
+    if (!updatedPuppy) {
+      return res.status(404).json({ message: "Puppy not found" });
+    }
+
     res.json(updatedPuppy);
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
-
 
 // @desc    Delete puppy
 // @route   DELETE /api/puppies/:id
