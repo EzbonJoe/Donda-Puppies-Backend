@@ -5,9 +5,13 @@ const Puppy = require('../models/PuppyModel.js');
 // @access  Admin
 const createPuppy = async (req, res) => {
   try {
-    const images = req.files ? req.files.map(file => file.path) : [];
+    const images = req.files
+      ? req.files.map(file => `/uploads/${file.filename}`)
+      : [];
+
     const newPuppy = new Puppy({ ...req.body, images });
     const savedPuppy = await newPuppy.save();
+
     res.status(201).json(savedPuppy);
   } catch (error) {
     res.status(500).json({ message: error.message });
