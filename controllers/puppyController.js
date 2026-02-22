@@ -77,6 +77,17 @@ const updatePuppy = async (req, res) => {
         : undefined
     };
 
+    if (req.body.name) updateData.name = req.body.name;
+    if (req.body.description) updateData.description = req.body.description;
+    if (req.body.breed) updateData.breed = req.body.breed;
+    if (req.body.ageInWeeks) updateData.ageInWeeks = Number(req.body.ageInWeeks);
+    if (req.body.priceCents) updateData.priceCents = Number(req.body.priceCents);
+    if (req.body.gender) updateData.gender = req.body.gender;
+
+    ['isAvailable','vaccinated','dewormed','trained','bestSeller'].forEach(field => {
+      if (req.body[field] !== undefined) updateData[field] = req.body[field] === "true";
+    });
+
     if (images) updateData.images = images;
 
     const updatedPuppy = await Puppy.findByIdAndUpdate(
