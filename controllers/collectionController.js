@@ -1,7 +1,6 @@
 const Collection = require('../models/Collection.js'); 
+const cloudinary = require("../config/cloudinary");
 const slugify = require('slugify');
-const fs = require('fs');
-const path = require('path');
 
 // Get all collections
 const getAllCollections = async (req, res) => {
@@ -40,7 +39,8 @@ const getCollectionByKey = async (req, res) => {
 // Create a new collection
 const createCollection = async (req, res) => {
   const { name, description, products, puppies, services } = req.body;
-  const backgroundImage = req.file ? `/uploads/${req.file.filename}` : '';
+  const backgroundImage = req.file ? req.file.path : "";
+  const backgroundImagePublicId = req.file ? req.file.filename : "";
   try {
     const parsedProducts = products ? JSON.parse(products) : [];
     const parsedPuppies = puppies ? JSON.parse(puppies) : [];
@@ -57,6 +57,7 @@ const createCollection = async (req, res) => {
       name,
       description,
       backgroundImage,
+      backgroundImagePublicId,
       products: parsedProducts,
       puppies: parsedPuppies,
       services: parsedServices
@@ -70,65 +71,90 @@ const createCollection = async (req, res) => {
   }
 }
 
-// Update collection
 const updateCollection = async (req, res) => {
   const { id } = req.params;
   const { name, description, products, puppies, services } = req.body;
+
   try {
     const collection = await Collection.findById(id);
-    if (!collection) return res.status(404).json({ message: 'Collection not found' });
+    if (!collection) {
+      return res.status(404).json({ message: "Collection not found" });
+    }
 
-    const parsedProducts = typeof products === 'string' ? JSON.parse(products) : products || [];
-    const parsedPuppies = typeof puppies === 'string' ? JSON.parse(puppies) : puppies || [];
-    const parsedServices = typeof services === 'string' ? JSON.parse(services) : services || [];
+    const parsedProducts =
+      typeof products === "string" ? JSON.parse(products) : products || [];
+
+    const parsedPuppies =
+      typeof puppies === "string" ? JSON.parse(puppies) : puppies || [];
+
+    const parsedServices =
+      typeof services === "string" ? JSON.parse(services) : services || [];
 
     const updateData = {
       name: name || collection.name,
       description: description || collection.description,
       products: parsedProducts,
       puppies: parsedPuppies,
-      services: parsedServices
+      services: parsedServices,
     };
 
+    // ✅ If new image uploaded
     if (req.file) {
-      // Delete old image
-      if (collection.backgroundImage) {
-        const oldImagePath = path.join(__dirname, '..', 'uploads', path.basename(collection.backgroundImage));
-        fs.unlink(oldImagePath, (err) => {
-          if (err) console.warn('Failed to delete old image:', err);
-        });
+      // 1️⃣ Delete old image from Cloudinary
+      if (collection.backgroundImagePublicId) {
+        await cloudinary.uploader.destroy(
+          collection.backgroundImagePublicId
+        );
       }
-      updateData.backgroundImage = `/uploads/${req.file.filename}`;
+
+      // 2️⃣ Save new image
+      updateData.backgroundImage = req.file.path;
+      updateData.backgroundImagePublicId = req.file.filename;
     }
 
-    const updatedCollection = await Collection.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
+    const updatedCollection = await Collection.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
     res.status(200).json(updatedCollection);
   } catch (error) {
-    console.error('Error updating collection:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error("Error updating collection:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // Delete collection
 const deleteCollection = async (req, res) => {
   const { id } = req.params;
-  try {
-    const deletedCollection = await Collection.findByIdAndDelete(id);
-    if (!deletedCollection) return res.status(404).json({ message: 'Collection not found' });
 
-    if (deletedCollection.backgroundImage) {
-      const imagePath = path.join(__dirname, '..', 'uploads', path.basename(deletedCollection.backgroundImage));
-      fs.unlink(imagePath, (err) => {
-        if (err) console.warn('Failed to delete background image:', err);
-      });
+  try {
+    const deletedCollection = await Collection.findById(id);
+
+    if (!deletedCollection) {
+      return res.status(404).json({ message: "Collection not found" });
     }
 
-    res.status(200).json({ message: 'Collection deleted successfully' });
+    // ✅ Delete background image from Cloudinary
+    if (deletedCollection.backgroundImagePublicId) {
+      await cloudinary.uploader.destroy(
+        deletedCollection.backgroundImagePublicId
+      );
+    }
+
+    // ✅ Delete collection from database
+    await Collection.findByIdAndDelete(id);
+
+    res.status(200).json({
+      message: "Collection deleted successfully",
+    });
+
   } catch (error) {
-    console.error('Error deleting collection:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error("Error deleting collection:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 module.exports = {
   getAllCollections,

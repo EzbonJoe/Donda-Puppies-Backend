@@ -1,32 +1,25 @@
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const multer = require("multer");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("../config/cloudinary");
 
-// Create uploads folder if it doesn't exist
-const uploadDir = "uploads";
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Storage config
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
+// Cloudinary storage setup
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "donda-puppies", // folder name in Cloudinary
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
   },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
 });
 
-// File filter
+// Optional: still keep file validation
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png/;
-  const ext = path.extname(file.originalname).toLowerCase();
+  const allowedTypes = /jpeg|jpg|png|webp/;
+  const ext = file.originalname.split(".").pop().toLowerCase();
+
   if (allowedTypes.test(ext)) {
     cb(null, true);
   } else {
-    cb(new Error("Only images are allowed (jpg, jpeg, png)"));
+    cb(new Error("Only images are allowed (jpg, jpeg, png, webp)"));
   }
 };
 
