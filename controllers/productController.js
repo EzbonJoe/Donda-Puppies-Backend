@@ -1,5 +1,6 @@
 const Product = require('../models/Product.js');
 const Collection = require('../models/Collection.js');
+const cloudinary = require('../config/cloudinary');
 
 // Get all products with collections
 const getAllProducts = async (req, res) => {
@@ -42,7 +43,8 @@ const createProduct = async (req, res) => {
   try {
     const { name, description, category, brand, priceCents, stock } = req.body;
 
-    const imagePaths = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
+    const images = req.files ? req.files.map(file => file.path) : [];
+    const imagesPublicIds = req.files ? req.files.map(file => file.filename) : [];
 
     const newProduct = new Product({
       name,
@@ -51,7 +53,8 @@ const createProduct = async (req, res) => {
       brand,
       priceCents: Number(priceCents),
       stock: Number(stock) || 0,
-      images: imagePaths
+      images,
+      imagesPublicIds
     });
 
     await newProduct.save();
@@ -81,12 +84,28 @@ const updateProduct = async (req, res) => {
 
     // Handle uploaded images
     if (req.files && req.files.length > 0) {
-      updates.images = req.files.map(file => `/uploads/${file.filename}`);
+      const newImages = req.files.map(file => file.path);
+      const newImagesPublicIds = req.files.map(file => file.filename);
+
+      // Get existing product to delete old images
+      const existingProduct = await Product.findById(id);
+      if (!existingProduct) return res.status(404).json({ message: 'Product not found' });
+
+      // Delete old images from Cloudinary
+      if (existingProduct.imagesPublicIds && existingProduct.imagesPublicIds.length > 0) {
+        for (const publicId of existingProduct.imagesPublicIds) {
+          await cloudinary.uploader.destroy(publicId);
+        }
+      }
+      
+      updates.images = newImages;
+      updates.imagesPublicIds = newImagesPublicIds;
     }
+
 
     const updatedProduct = await Product.findByIdAndUpdate(
       id,
-      updates,
+      updates,      
       { new: true, runValidators: true }
     );
 
@@ -109,6 +128,15 @@ const deleteProduct = async (req, res) => {
   try {
     const deletedProduct = await Product.findByIdAndDelete(id);
     if (!deletedProduct) return res.status(404).json({ message: 'Product not found' });
+
+    // Delete images from Cloudinary
+    if (deletedProduct.imagesPublicIds && deletedProduct.imagesPublicIds.length > 0) {
+      for (const publicId of deletedProduct.imagesPublicIds) {
+        await cloudinary.uploader.destroy(publicId);
+      }
+    }
+
+    
 
     // Optionally remove product from collections
     await Collection.updateMany(

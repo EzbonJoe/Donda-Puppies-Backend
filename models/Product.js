@@ -33,7 +33,8 @@ const productSchema = new mongoose.Schema({
     min: 0
   },
 
-  images: [String],
+  images: [{ type: String }],
+  imagesPublicIds: [{ type: String }],
 
   isActive: {
     type: Boolean,

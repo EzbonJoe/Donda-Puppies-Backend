@@ -34,7 +34,8 @@ const puppySchema = new mongoose.Schema({
     type: String
   },
 
-  images: [String], // multiple pictures of the puppy
+  images: [{ type: String }],
+  imagesPublicIds: [{ type: String }],
 
   isAvailable: {
     type: Boolean,
