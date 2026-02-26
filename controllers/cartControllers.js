@@ -23,7 +23,8 @@ const getCartById = async (req, res) => {
 
     const cart = await Cart.findOne({ user: userId })
       .populate('items.product')
-      .populate('items.service');
+      .populate('items.service')
+      .populate('items.puppy'); // new population for puppies
 
     if (!cart) return res.status(200).json({ cartItems: [] });
 
@@ -31,6 +32,7 @@ const getCartById = async (req, res) => {
       _id: item._id,
       product: item.product,
       service: item.service,
+      puppy: item.puppy,
       quantity: item.quantity,
       deliveryOptionId: item.deliveryOptionId,
       serviceDate: item.serviceDate,
@@ -48,25 +50,38 @@ const getCartById = async (req, res) => {
 const addItemToCart = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { productId, serviceId, quantity = 1, deliveryOptionId, serviceDate, serviceOptionId } = req.body;
+    const {
+      productId,
+      serviceId,
+      puppyId,
+      quantity = 1,
+      deliveryOptionId,
+      serviceDate,
+      serviceOptionId
+    } = req.body;
 
-    if (!productId && !serviceId) {
-      return res.status(400).json({ message: 'Must provide productId or serviceId' });
+    if (!productId && !serviceId && !puppyId) {
+      return res.status(400).json({ message: 'Must provide productId, serviceId, or puppyId' });
     }
 
     let cart = await Cart.findOne({ user: userId });
     if (!cart) cart = new Cart({ user: userId, items: [] });
 
-    // Check if the item already exists
+    // Determine item type
     let itemIndex;
     if (productId) {
       itemIndex = cart.items.findIndex(item => item.product?.toString() === productId);
-    } else {
+    } else if (puppyId) {
+      itemIndex = cart.items.findIndex(item => item.puppy?.toString() === puppyId);
+      if (itemIndex > -1) {
+        return res.status(400).json({ message: 'This puppy is already in your cart.' });
+      }
+    } else if (serviceId) {
       itemIndex = cart.items.findIndex(item => item.service?.toString() === serviceId);
     }
 
     if (itemIndex > -1) {
-      // Update quantity if already exists
+      // Only products and services can increment quantity
       cart.items[itemIndex].quantity += quantity;
       if (deliveryOptionId) cart.items[itemIndex].deliveryOptionId = deliveryOptionId;
       if (serviceDate) cart.items[itemIndex].serviceDate = serviceDate;
@@ -75,7 +90,10 @@ const addItemToCart = async (req, res) => {
       // Add new item
       const newItem = productId
         ? { product: productId, quantity, deliveryOptionId }
+        : puppyId
+        ? { puppy: puppyId, quantity: 1 } // Puppies always quantity 1
         : { service: serviceId, quantity, serviceDate, serviceOptionId };
+
       cart.items.push(newItem);
     }
 
@@ -83,7 +101,8 @@ const addItemToCart = async (req, res) => {
 
     const populatedCart = await Cart.findById(cart._id)
       .populate('items.product')
-      .populate('items.service');
+      .populate('items.service')
+      .populate('items.puppy');
 
     res.status(200).json(populatedCart);
   } catch (error) {
@@ -96,28 +115,41 @@ const addItemToCart = async (req, res) => {
 const updateCartItem = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { productId, serviceId, quantity, serviceDate, serviceOptionId } = req.body;
+    const { productId, serviceId, puppyId, quantity, serviceDate, serviceOptionId } = req.body;
 
     const cart = await Cart.findOne({ user: userId });
     if (!cart) return res.status(404).json({ message: 'Cart not found' });
 
-    const itemIndex = productId
-      ? cart.items.findIndex(item => item.product?.toString() === productId)
-      : cart.items.findIndex(item => item.service?.toString() === serviceId);
+    // Find the item index based on type
+    let itemIndex = -1;
+    if (productId) itemIndex = cart.items.findIndex(item => item.product?.toString() === productId);
+    else if (puppyId) itemIndex = cart.items.findIndex(item => item.puppy?.toString() === puppyId);
+    else if (serviceId) itemIndex = cart.items.findIndex(item => item.service?.toString() === serviceId);
 
     if (itemIndex === -1) return res.status(404).json({ message: 'Item not found in cart' });
 
-    if (quantity) cart.items[itemIndex].quantity = quantity;
-    if (serviceDate) cart.items[itemIndex].serviceDate = serviceDate;
-    if (serviceOptionId) cart.items[itemIndex].serviceOptionId = serviceOptionId;
+    const item = cart.items[itemIndex];
+
+    // Update quantity
+    if (item.puppy) {
+      item.quantity = 1; // Puppies are always quantity 1
+    } else if (quantity && quantity > 0) {
+      item.quantity = quantity;
+    }
+
+    // Update other optional fields
+    if (serviceDate) item.serviceDate = serviceDate;
+    if (serviceOptionId) item.serviceOptionId = serviceOptionId;
 
     await cart.save();
 
     const populatedCart = await Cart.findById(cart._id)
       .populate('items.product')
-      .populate('items.service');
+      .populate('items.service')
+      .populate('items.puppy');
 
     res.status(200).json(populatedCart);
+
   } catch (error) {
     console.error('Error updating cart item:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -128,31 +160,42 @@ const updateCartItem = async (req, res) => {
 const removeItemFromCart = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { productId, serviceId } = req.body;
+    const { productId, serviceId, puppyId } = req.body;
 
     const cart = await Cart.findOne({ user: userId });
     if (!cart) return res.status(404).json({ message: 'Cart not found' });
 
-    const itemIndex = productId
-      ? cart.items.findIndex(item => item.product?.toString() === productId)
-      : cart.items.findIndex(item => item.service?.toString() === serviceId);
+    // Find index based on type
+    let itemIndex = -1;
+    if (productId) itemIndex = cart.items.findIndex(item => item.product?.toString() === productId);
+    else if (puppyId) itemIndex = cart.items.findIndex(item => item.puppy?.toString() === puppyId);
+    else if (serviceId) itemIndex = cart.items.findIndex(item => item.service?.toString() === serviceId);
 
     if (itemIndex === -1) return res.status(404).json({ message: 'Item not found in cart' });
 
-    // Reduce quantity or remove
-    if (cart.items[itemIndex].quantity > 1) {
-      cart.items[itemIndex].quantity -= 1;
-    } else {
+    const item = cart.items[itemIndex];
+
+    // Puppies are unique, remove immediately
+    if (item.puppy) {
       cart.items.splice(itemIndex, 1);
+    } else {
+      // Products and services: decrement quantity if more than 1
+      if (item.quantity > 1) {
+        item.quantity -= 1;
+      } else {
+        cart.items.splice(itemIndex, 1);
+      }
     }
 
     await cart.save();
 
     const populatedCart = await Cart.findById(cart._id)
       .populate('items.product')
-      .populate('items.service');
+      .populate('items.service')
+      .populate('items.puppy');
 
     res.status(200).json(populatedCart);
+
   } catch (error) {
     console.error('Error removing cart item:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -180,22 +223,35 @@ const clearCart = async (req, res) => {
 const updateDeliveryOptionId = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { productId, deliveryOptionId } = req.body;
+    const { productId, serviceId, puppyId, deliveryOptionId } = req.body;
 
     const cart = await Cart.findOne({ user: userId });
     if (!cart) return res.status(404).json({ message: 'Cart not found' });
 
-    const itemIndex = cart.items.findIndex(item => item.product?.toString() === productId);
+    // Find item index based on type
+    let itemIndex = -1;
+    if (productId) itemIndex = cart.items.findIndex(item => item.product?.toString() === productId);
+    else if (puppyId) itemIndex = cart.items.findIndex(item => item.puppy?.toString() === puppyId);
+    else if (serviceId) itemIndex = cart.items.findIndex(item => item.service?.toString() === serviceId);
+
     if (itemIndex === -1) return res.status(404).json({ message: 'Item not found in cart' });
 
-    cart.items[itemIndex].deliveryOptionId = deliveryOptionId;
+    const item = cart.items[itemIndex];
+
+    // Only products and puppies can have delivery options
+    if (item.product || item.puppy) {
+      item.deliveryOptionId = deliveryOptionId;
+    }
+
     await cart.save();
 
     const populatedCart = await Cart.findById(cart._id)
       .populate('items.product')
-      .populate('items.service');
+      .populate('items.service')
+      .populate('items.puppy');
 
     res.status(200).json(populatedCart);
+
   } catch (error) {
     console.error('Error updating delivery option:', error);
     res.status(500).json({ message: 'Internal server error' });
