@@ -26,7 +26,8 @@ const placeOrder = async (req, res) => {
     // Get cart items (products + services only)
     const cartData = await Cart.findOne({ user: userId })
       .populate('items.product')
-      .populate('items.service');
+      .populate('items.service')
+      .populate('items.puppy'); // new population for puppies
 
     const user = await User.findById(userId).select('name email');
 
@@ -60,6 +61,22 @@ const placeOrder = async (req, res) => {
         };
       }
 
+      if (item.puppy) {
+        totalAmount += item.puppy.priceCents * item.quantity;
+
+        if (!item.puppy.isAvailable) {
+          throw new Error(`Puppy ${item.puppy.name} is already sold`);
+        }
+        
+        return {
+          itemType: "Puppy",
+          product: item.puppy._id,
+          quantity: item.quantity,
+          deliveryType: "Pickup"
+        };
+      }
+
+
       return null;
     }).filter(Boolean);
 
@@ -68,15 +85,22 @@ const placeOrder = async (req, res) => {
       items: orderItems,
       shippingAddress,
       paymentMethod,
-      totalAmount: totalAmount / 100, // convert cents to dollars
+      totalAmount: totalAmount / 100,
       status: 'Pending'
     });
 
     await newOrder.save();
 
+    for (const item of cartData.items) {
+      if (item.puppy) {
+        item.puppy.isAvailable = false;
+        await item.puppy.save();
+      }
+    }
+
     // Generate email HTML
     const orderItemsHtml = cartData.items.map(item => {
-      const data = item.product || item.service;
+      const data = item.product || item.service || item.puppy; // get the correct data based on item type
 
       const price = data.priceCents;
       const name = data.name;
@@ -133,6 +157,7 @@ const placeOrder = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 const getMyOrders = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -225,10 +250,48 @@ const updateOrderStatus = async(req, res) => {
   }
 }
 
+const placePuppyOrder = async (req, res) => {
+  try {
+    const { puppyId, shippingAddress, paymentMethod } = req.body;
+    const userId = req.user.id;
+
+    const puppy = await Puppy.findOneAndUpdate(
+      { _id: puppyId, isAvailable: true },
+      { isAvailable: false },
+      { new: true }
+    );
+
+    if (!puppy) {
+      return res.status(400).json({ message: "Puppy already sold" });
+    }
+
+    const newOrder = new Order({
+      user: userId,
+      items: [{
+        itemType: "Puppy",
+        product: puppy._id,
+        quantity: 1,
+        deliveryType: "Pickup"
+      }],
+      shippingAddress,
+      paymentMethod,
+      totalAmount: puppy.priceCents
+    });
+
+    await newOrder.save();
+
+    res.status(201).json({ order: newOrder });
+
+  } catch (error) {
+    res.status(500).json({ message: "Error placing puppy order" });
+  }
+};
+
 module.exports = {
   placeOrder,
   getMyOrders,
   getOrderById,
   getAllOrders,
-  updateOrderStatus
+  updateOrderStatus,
+  placePuppyOrder
 }

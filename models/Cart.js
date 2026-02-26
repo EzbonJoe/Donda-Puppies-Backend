@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const cartItemSchema = new mongoose.Schema({
   product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
   service: { type: mongoose.Schema.Types.ObjectId, ref: 'Service' },
+  puppy: { type: mongoose.Schema.Types.ObjectId, ref: 'Puppy' }, // new field for puppies
+  
 
   quantity: { type: Number, default: 1, min: 1 },
 
@@ -18,12 +20,13 @@ const cartItemSchema = new mongoose.Schema({
 
 // Custom validation to ensure either product or service is set
 cartItemSchema.pre('validate', function () {
-  if (!this.product && !this.service) {
-    throw new Error('Cart item must have either a product or a service.');
+  if (!this.product && !this.service && !this.puppy) {
+    throw new Error('Cart item must have either a product, service, or puppy.');
   }
 
-  if (this.product && this.service) {
-    throw new Error('Cart item cannot have both product and service.');
+  if ((this.product && this.service) || (this.product && this.puppy) || (this.service && this.puppy)) {
+    throw new Error('Cart item cannot have more than one of product, service, or puppy.');
+
   }
 });
 
