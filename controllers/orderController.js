@@ -116,32 +116,36 @@ const placeOrder = async (req, res) => {
       `;
     }).join('');
 
-    await sendEmail(
-      user.email,
-      "Your Order Confirmation",
-      `<div style="font-family:Arial,sans-serif; max-width:600px; margin:auto; padding:20px;">
-        <h2>Thank you for your order, ${user.name || 'Customer'}!</h2>
-        <table style="width:100%; border-collapse:collapse; margin-top:15px;">
-          <thead>
-            <tr>
-              <th style="padding:8px; border:1px solid #ddd; text-align:left;">Item</th>
-              <th style="padding:8px; border:1px solid #ddd; text-align:center;">Qty</th>
-              <th style="padding:8px; border:1px solid #ddd; text-align:right;">Price</th>
-              <th style="padding:8px; border:1px solid #ddd; text-align:right;">Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${orderItemsHtml}
-            <tr>
-              <td colspan="3" style="padding:8px; border:1px solid #ddd; text-align:right;"><strong>Total</strong></td>
-              <td style="padding:8px; border:1px solid #ddd; text-align:right;">
-                <strong>$${newOrder.totalAmount.toFixed(2)}</strong>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>`
-    );
+    try{
+      await sendEmail(
+        user.email,
+        "Your Order Confirmation",
+        `<div style="font-family:Arial,sans-serif; max-width:600px; margin:auto; padding:20px;">
+          <h2>Thank you for your order, ${user.name || 'Customer'}!</h2>
+          <table style="width:100%; border-collapse:collapse; margin-top:15px;">
+            <thead>
+              <tr>
+                <th style="padding:8px; border:1px solid #ddd; text-align:left;">Item</th>
+                <th style="padding:8px; border:1px solid #ddd; text-align:center;">Qty</th>
+                <th style="padding:8px; border:1px solid #ddd; text-align:right;">Price</th>
+                <th style="padding:8px; border:1px solid #ddd; text-align:right;">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${orderItemsHtml}
+              <tr>
+                <td colspan="3" style="padding:8px; border:1px solid #ddd; text-align:right;"><strong>Total</strong></td>
+                <td style="padding:8px; border:1px solid #ddd; text-align:right;">
+                  <strong>$${newOrder.totalAmount.toFixed(2)}</strong>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>`
+      );
+    } catch(err){
+      console.error('Error sending email:', err);
+    }    
 
     // Clear cart
     cartData.items = [];
