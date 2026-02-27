@@ -21,7 +21,7 @@ const productSchema = new mongoose.Schema({
     type: String
   },
 
-  priceCents: { 
+  price: { 
     type: Number, 
     required: true,
     min: 0

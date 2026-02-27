@@ -58,7 +58,7 @@ const getPuppyById = async (req, res) => {
 //     const updateData = {
 //       ...req.body,
 //       ageInWeeks: req.body.ageInWeeks ? Number(req.body.ageInWeeks) : undefined,
-//       priceCents: req.body.priceCents ? Number(req.body.priceCents) : undefined,
+//       price: req.body.price ? Number(req.body.price) : undefined,
 //       isAvailable: req.body.isAvailable !== undefined
 //         ? req.body.isAvailable === "true"
 //         : undefined,
@@ -80,7 +80,7 @@ const getPuppyById = async (req, res) => {
 //     if (req.body.description) updateData.description = req.body.description;
 //     if (req.body.breed) updateData.breed = req.body.breed;
 //     if (req.body.ageInWeeks) updateData.ageInWeeks = Number(req.body.ageInWeeks);
-//     if (req.body.priceCents) updateData.priceCents = Number(req.body.priceCents);
+//     if (req.body.price) updateData.price = Number(req.body.price);
 //     if (req.body.gender) updateData.gender = req.body.gender;
 
 //     ['isAvailable','vaccinated','dewormed','trained','bestSeller'].forEach(field => {
@@ -115,7 +115,7 @@ const updatePuppy = async (req, res) => {
     const updateData = {
       ...req.body,
       ageInWeeks: req.body.ageInWeeks ? Number(req.body.ageInWeeks) : puppy.ageInWeeks,
-      priceCents: req.body.priceCents ? Number(req.body.priceCents) : puppy.priceCents,
+      price: req.body.price ? Number(req.body.price) : puppy.price,
       isAvailable: req.body.isAvailable !== undefined
         ? req.body.isAvailable === "true"
         : puppy.isAvailable,

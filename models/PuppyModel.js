@@ -24,7 +24,7 @@ const puppySchema = new mongoose.Schema({
     enum: ['Male', 'Female']
   },
 
-  priceCents: {
+  price: {
     type: Number,
     required: true,
     min: 0

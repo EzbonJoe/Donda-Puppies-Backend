@@ -17,7 +17,7 @@ const serviceSchema = new mongoose.Schema({
     required: true
   },
 
-  priceCents: {
+  price: {
     type: Number,
     required: true,
     min: 0

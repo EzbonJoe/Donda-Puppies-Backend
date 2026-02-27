@@ -40,7 +40,7 @@ const placeOrder = async (req, res) => {
     // Prepare order items
     const orderItems = cartData.items.map(item => {
       if (item.product) {
-        totalAmount += item.product.priceCents * item.quantity;
+        totalAmount += item.product.price * item.quantity;
 
         return {
           itemType: "Product",
@@ -51,7 +51,7 @@ const placeOrder = async (req, res) => {
       }
 
       if (item.service) {
-        totalAmount += item.service.priceCents * item.quantity;
+        totalAmount += item.service.price * item.quantity;
 
         return {
           itemType: "Service",
@@ -62,7 +62,7 @@ const placeOrder = async (req, res) => {
       }
 
       if (item.puppy) {
-        totalAmount += item.puppy.priceCents * item.quantity;
+        totalAmount += item.puppy.price * item.quantity;
 
         if (!item.puppy.isAvailable) {
           throw new Error(`Puppy ${item.puppy.name} is already sold`);
@@ -102,7 +102,7 @@ const placeOrder = async (req, res) => {
     const orderItemsHtml = cartData.items.map(item => {
       const data = item.product || item.service || item.puppy; // get the correct data based on item type
 
-      const price = data.priceCents;
+      const price = data.price;
       const name = data.name;
       const subtotal = (price * item.quantity / 100).toFixed(2);
 
@@ -165,7 +165,7 @@ const placeOrder = async (req, res) => {
 const getMyOrders = async (req, res) => {
   try {
     const userId = req.user.id;
-    const orders = await Order.find({ user: userId }).sort({ createdAt: -1 }).populate('items.product', 'name images priceCents');
+    const orders = await Order.find({ user: userId }).sort({ createdAt: -1 }).populate('items.product', 'name images price');
 
     res.status(200).json(orders);
   } catch (error) {
@@ -190,11 +190,11 @@ const getOrderById = async(req, res) => {
       // Allow admin to access any order
       order = await Order.findById(orderId)
         .populate('user', 'name email')
-        .populate('items.product', 'name images priceCents');
+        .populate('items.product', 'name images price');
     } else {
       // Regular user can only access their own order
       order = await Order.findOne({ _id: orderId, user: userId })
-        .populate('items.product', 'name images priceCents');
+        .populate('items.product', 'name images price');
     }
 
 
@@ -279,7 +279,7 @@ const placePuppyOrder = async (req, res) => {
       }],
       shippingAddress,
       paymentMethod,
-      totalAmount: puppy.priceCents
+      totalAmount: puppy.price
     });
 
     await newOrder.save();

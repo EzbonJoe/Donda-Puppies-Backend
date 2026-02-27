@@ -41,7 +41,7 @@ const getProductById = async (req, res) => {
 // Create new product
 const createProduct = async (req, res) => {
   try {
-    const { name, description, category, brand, priceCents, stock } = req.body;
+    const { name, description, category, brand, price, stock } = req.body;
 
     const images = req.files ? req.files.map(file => file.path) : [];
     const imagesPublicIds = req.files ? req.files.map(file => file.filename) : [];
@@ -51,7 +51,7 @@ const createProduct = async (req, res) => {
       description,
       category,
       brand,
-      priceCents: Number(priceCents),
+      price: Number(price),
       stock: Number(stock) || 0,
       images,
       imagesPublicIds
@@ -75,7 +75,7 @@ const updateProduct = async (req, res) => {
       description: req.body.description,
       category: req.body.category,
       brand: req.body.brand,
-      priceCents: req.body.priceCents ? Number(req.body.priceCents) : undefined,
+      price: req.body.price ? Number(req.body.price) : undefined,
       stock: req.body.stock ? Number(req.body.stock) : undefined
     };
 

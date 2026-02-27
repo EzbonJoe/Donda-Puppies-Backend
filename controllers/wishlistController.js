@@ -38,7 +38,7 @@ const addToWishlist = async (req, res) => {
 
     // Populate for response
     const populatedWishlist = await Wishlist.findById(wishlist._id)
-      .populate('products', 'name images priceCents')
+      .populate('products', 'name images price')
       .populate('puppies', 'name breed age images');
 
     res.status(200).json({ message: "Item added to wishlist", wishlist: populatedWishlist });
@@ -59,7 +59,7 @@ const getWishlist = async (req, res) => {
     }
 
     const wishlist = await Wishlist.findOne({ userId })
-      .populate('products', 'name images priceCents')
+      .populate('products', 'name images price')
       .populate('puppies', 'name breed age images');
 
     res.status(200).json(wishlist || { products: [], puppies: [] });
@@ -96,7 +96,7 @@ const removeFromWishlist = async (req, res) => {
     await wishlist.save();
 
     const populatedWishlist = await Wishlist.findById(wishlist._id)
-      .populate('products', 'name images priceCents')
+      .populate('products', 'name images price')
       .populate('puppies', 'name breed age images');
 
     res.status(200).json({ message: "Item removed from wishlist", wishlist: populatedWishlist });
